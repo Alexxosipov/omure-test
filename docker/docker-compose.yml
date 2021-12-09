@@ -1,0 +1,65 @@
+version: "3.5"
+services:
+  omure-redis:
+    image: redis:alpine
+    container_name: omure-redis
+    volumes:
+      - omure-redis:/data
+    ports:
+      - "16377:6379"
+    networks:
+      - omure
+
+  omure-mysql:
+    image: mysql:5.7.22
+    container_name: omure-mysql
+    working_dir: /application
+    volumes:
+      - omure-mysql-data:/var/lib/mysql/
+    environment:
+      MYSQL_ROOT_PASSWORD: KBHJ8765ljk767kh
+      MYSQL_DATABASE: app
+    ports:
+      - "2324:3306"
+    networks:
+      - omure
+
+  omure-nginx:
+    image: nginx:alpine
+    container_name: omure-nginx
+    working_dir: /application
+    volumes:
+      - ../:/application
+      - ./phpdocker/nginx:/etc/nginx/conf.d
+    ports:
+      - "8080:80"
+    networks:
+      - omure
+    depends_on:
+      - omure-php-fpm
+
+  omure-php-fpm:
+    build: phpdocker/php-fpm
+    container_name: omure-php-fpm
+    working_dir: /application
+    volumes:
+      - ../:/application
+      - ./phpdocker/php-fpm/php-ini-overrides.ini:/etc/php/7.4/fpm/conf.d/99-overrides.ini
+    ports:
+      - "9000"
+    networks:
+      - omure
+    environment:
+      APP_ENV: local
+      CONTAINER_ROLE: app
+
+networks:
+  omure:
+    driver: bridge
+
+volumes:
+  omure-mysql-data:
+    driver: "local"
+  omure-redis:
+    driver: "local"
+
