@@ -3,8 +3,10 @@
 namespace App\Services\Contacts\Providers;
 
 use App\Exceptions\Contacts\Adapters\Salesforce\InvalidCredentialsException;
+use App\Exceptions\SalesforceServerErrorException;
 use App\Models\Contact;
 use GuzzleHttp\Client;
+use GuzzleHttp\Exception\ServerException;
 use GuzzleHttp\RequestOptions;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
@@ -22,10 +24,21 @@ class SalesforceProvider implements ContactProviderInterface
 
     public function create(Contact $contact): string
     {
-        $this->client->post(config('services.salesforce.base_url') . '/contacts', [
-            RequestOptions::HEADERS => $this->getHeaders(),
-            RequestOptions::FORM_PARAMS => $contact->toArray()
-        ]);
+        try {
+            $salesforceContact = $this->client->post(config('services.salesforce.base_url') . '/contacts/', [
+                RequestOptions::HEADERS => $this->getHeaders(),
+                RequestOptions::FORM_PARAMS => $contact->only(['first_name', 'last_name', 'email']),
+                RequestOptions::DEBUG => true
+            ]);
+
+        } catch (ServerException $e) {
+            throw new SalesforceServerErrorException();
+        }
+
+        $salesforceContact = json_decode($salesforceContact->getBody());
+
+        Log::info('Salesforce contact', $salesforceContact);
+        return $salesforceContact->id;
     }
 
     public function update(Contact $contact): void
@@ -55,15 +68,11 @@ class SalesforceProvider implements ContactProviderInterface
                     'email' => config('services.salesforce.email'),
                     'password' => config('services.salesforce.password'),
                 ],
-                RequestOptions::HEADERS => [
-                    'Content-Type' => 'multipart/form-data'
-                ]
             ])->getBody();
 
             $response = json_decode($response, true);
 
             if (!isset($response['token'])) {
-                Log::info('Response from salesforce', $response);
                 throw new InvalidCredentialsException();
             }
 
@@ -74,7 +83,8 @@ class SalesforceProvider implements ContactProviderInterface
     private function getHeaders(): array
     {
         return [
-            'Authorization' => $this->accessToken
+            'Authorization' => $this->accessToken,
+            'content-type' => 'multipart/form-data'
         ];
     }
 }

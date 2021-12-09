@@ -3,6 +3,7 @@
 namespace Database\Factories;
 
 use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Support\Str;
 
 class ContactFactory extends Factory
 {
@@ -16,7 +17,7 @@ class ContactFactory extends Factory
         return [
             'first_name' => $this->faker->firstName,
             'last_name' => $this->faker->lastName,
-            'email' => $this->faker->email,
+            'email' => Str::random(40) . '@' . $this->faker->freeEmailDomain(),
             'phone' => $this->faker->phoneNumber,
             'lead_source' => $this->faker->company
         ];
